@@ -30,6 +30,37 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,0.0.0.0").split(",")
 
+API_TIMEOUT = 30
+
+# Redis Configuration
+REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+
+# Cache Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'amopromo',
+        'TIMEOUT': 300,  # 5 minutes default timeout
+    }
+}
+
+# Cache keys - centralized for easy management
+CACHE_KEYS = {
+    'AIRPORTS_DATA': 'airports:data:v1',
+    'AIRPORTS_BY_IATA': 'airports:by_iata:v1',
+    'AIRPORTS_LAST_SYNC': 'airports:last_sync:v1',
+}
+
+# Cache timeouts (in seconds)
+CACHE_TIMEOUTS = {
+    'AIRPORTS_DATA': 24 * 60 * 60,  # 24 hours
+    'AIRPORTS_SHORT': 60 * 60,      # 1 hour
+    'AIRPORTS_LONG': 7 * 24 * 60 * 60,  # 1 week
+}
 
 # Application definition
 
