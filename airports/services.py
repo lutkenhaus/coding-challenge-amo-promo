@@ -1,22 +1,116 @@
+import json
 import requests
 from requests.auth import HTTPBasicAuth
 from django.conf import settings
 from django.utils import timezone
+from django.core.cache import cache
 from typing import List, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
 
-class AirportAPIService:
-
+class AirportCacheService:
     def __init__(self):
-        self.base_url = settings.AIRPORTS_API_URL
+        self.cache_keys = getattr(settings, 'CACHE_KEYS', {})
+        self.cache_timeouts = getattr(settings, 'CACHE_TIMEOUTS', {})
+
+        self.airports_data_key = self.cache_keys.get('AIRPORTS_DATA', 'airports:data:v1')
+        self.airports_by_iata_key = self.cache_keys.get('AIRPORTS_BY_IATA', 'airports:by_iata:v1')
+        self.last_sync_key = self.cache_keys.get('AIRPORTS_LAST_SYNC', 'airports:last_sync:v1')
+
+        self.default_timeout = self.cache_timeouts.get('AIRPORTS_DATA', 24*60*60)
+
+    def cache_airports_data(self, airports_data: Dict[str, Dict], timeout: Optional[int] = None) -> bool:
+        try:
+            timeout = timeout or self.default_timeout
+            logger.info(f"Caching {len(airports_data)} airports data")
+            success = cache.set(
+                self.airports_data_key,
+                json.dumps(airports_data),
+                timeout=timeout
+            )
+
+            if success:
+                self._cache_individual_airports(airports_data, timeout)
+
+                cache.set(
+                    self.last_sync_key,
+                    timezone.now().isoformat(),
+                    timeout=timeout
+                )
+
+                logger.info("Successfully cached airports data")
+                return True
+            else:
+                logger.error("Failed to cache airports data")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error caching airports data: {e}")
+            return False
+
+    def _cache_individual_airports(self, airports_data: Dict[str, Dict], timeout: int):
+        try:
+            for iata, airport_data in airports_data.items():
+                individual_key = f"{self.airports_by_iata_key}:{iata}"
+                cache.set(individual_key, json.dumps(airport_data), timeout=timeout)
+            
+            logger.info(f"Cached {len(airports_data)} individual airports")
+        except Exception as e:
+            logger.error(f"Error caching individual airports: {e}")
+
+    def get_airports_data(self) -> Optional[Dict[str, Dict]]:
+        try:
+            data = cache.get(self.airports_data_key)
+            if data:
+                data = json.loads(data)
+                logger.info(f"Retrieved {len(data)} airports from cache")
+                return data
+            else:
+                logger.info("No airports data found in cache")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error retrieving airports data from cache: {e}")
+            return None
+
+    def get_airport_by_iata(self, iata: str) -> Optional[Dict]:
+        try:
+            iata = iata.upper().strip()
+            individual_key = f"{self.airports_by_iata_key}:{iata}"
+            
+            airport_data = cache.get(individual_key)
+            if airport_data:
+                airport_data = json.loads(airport_data)
+                logger.debug(f"Retrieved airport {iata} from cache")
+                return airport_data
+            
+            all_airports = self.get_airports_data()
+            if all_airports and iata in all_airports:
+                airport_data = all_airports[iata]
+                
+                cache.set(individual_key, json.dumps(airport_data), self.default_timeout)
+                logger.debug(f"Cached airport {iata} from full dataset")
+                return airport_data
+                
+            logger.debug(f"Airport {iata} not found in cache")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error retrieving airport {iata} from cache: {e}")
+            return None
+
+
+class AirportAPIService:
+    def __init__(self):
+        self.base_url = getattr(settings, 'AIRPORTS_API_URL', '')
         self.auth = HTTPBasicAuth(
-            settings.API_LOGIN,
-            settings.API_PASSWORD
+            getattr(settings, 'API_LOGIN', ''),
+            getattr(settings, 'API_PASSWORD', '')
         )
-        self.timeout = settings.API_TIMEOUT
+        self.timeout = getattr(settings, 'API_TIMEOUT', 30)
         self.session = self._create_session()
+        self.cache_service = AirportCacheService()
 
     def _create_session(self) -> requests.Session:
         session = requests.Session()
@@ -28,49 +122,49 @@ class AirportAPIService:
         session.auth = self.auth
         return session
 
-    def fetch_airports(self) -> Optional[List[Dict]]:
+    def get_airports(self, force_refresh: bool = False) -> Optional[Dict[str, Dict]]:
+        # force_refresh (bool): If True, bypass cache and fetch from API
         try:
-            logger.info("Fetching airports from external API")
+            if not force_refresh:
+                cached_data = self.cache_service.get_airports_data()
+                if cached_data:
+                    logger.info("Got cached airports data")
+                    return cached_data
 
-            response = self.session.get(
-                self.base_url,
-                timeout=self.timeout
-            )
-            logger.info(f"Response status: {response.status_code}")
-            logger.info(f"Response headers: {dict(response.headers)}")
-            response.raise_for_status()
-
-            data = response.json()
-
-            airports_list = [
-                {**value, "iata": key}
-                for key, value in data.items()
-            ]
-
-            logger.info(f"Got {len(airports_data)} airports from API")
-            return airports_data
-
-        except requests.exceptions.Timeout:
-        logger.error(f"Timeout while fetching airports (timeout: {self.timeout}s)")
-        return None
-        
-        except requests.exceptions.ConnectionError:
-            logger.error("Connection error: could not reach the API server")
-            return None
+            logger.info("Fetching fresh airports data from API (force_refresh is True)")
+            fresh_data = self.fetch_airports()
             
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error while fetching airports: {e}")
-            logger.error(f"Response content: {e.response.text if e.response else 'No response'}")
+            if fresh_data:
+                formatted_data = self._format_api_response(fresh_data)
+                cache_success = self.cache_service.cache_airports_data(formatted_data)
+                
+                if cache_success:
+                    logger.info("Successfully cached fresh airports data")
+                else:
+                    logger.warning("Failed to cache fresh data, but returning API data")
+                
+                return formatted_data
+
+            logger.error("Both cache and API failed - no data retrieved")
             return None
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request error while fetching airports: {e}")
-            return None
-            
-        except ValueError as e:
-            logger.error(f"JSON decode error: {e}")
-            return None
-            
+
         except Exception as e:
-            logger.error(f"Unexpected error while fetching airports: {e}")
+            logger.error(f"Error in get_airports: {e}")
+            return None
+    
+    def _format_api_response(self, api_response) -> Dict[str, Dict]:
+        if not isinstance(api_response, dict):
+            logger.error(f"Unexpected API response format: {type(api_response)}")
+            return {}
+        return api_response
+
+    def fetch_airports(self) -> Optional[Dict[str, Dict]]:
+        try:
+            response = self.session.get(self.base_url, timeout=self.timeout)
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"Got {len(data)} airports from API")
+            return data
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error fetching airports: {e}")
             return None

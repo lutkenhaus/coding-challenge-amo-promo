@@ -17,12 +17,12 @@ class Airport(models.Model):
         max_length=100,
         help_text="City where airport is located"
     )
-    latitude = models.DecimalField(
+    lat = models.DecimalField(
         max_digits=10, 
         decimal_places=7,
         help_text="Latitude coordinate for distance calculations"
     )
-    longitude = models.DecimalField(
+    lon = models.DecimalField(
         max_digits=10, 
         decimal_places=7,
         help_text="Longitude coordinate for distance calculations"
