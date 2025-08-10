@@ -1,11 +1,11 @@
 import json
+import logging
 import requests
+from typing import List, Dict, Optional
 from requests.auth import HTTPBasicAuth
 from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
-from typing import List, Dict, Optional
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,6 @@ class AirportCacheService:
         self.airports_data_key = self.cache_keys.get('AIRPORTS_DATA', 'airports:data:v1')
         self.airports_by_iata_key = self.cache_keys.get('AIRPORTS_BY_IATA', 'airports:by_iata:v1')
         self.last_sync_key = self.cache_keys.get('AIRPORTS_LAST_SYNC', 'airports:last_sync:v1')
-
         self.default_timeout = self.cache_timeouts.get('AIRPORTS_DATA', 24*60*60)
 
     def cache_airports_data(self, airports_data: Dict[str, Dict], timeout: Optional[int] = None) -> bool:
@@ -32,30 +31,30 @@ class AirportCacheService:
 
             if success:
                 self._cache_individual_airports(airports_data, timeout)
-
-                cache.set(
-                    self.last_sync_key,
-                    timezone.now().isoformat(),
-                    timeout=timeout
-                )
-
-                logger.info("Successfully cached airports data")
+                cache.set(self.last_sync_key, timezone.now().isoformat(), timeout=timeout)
+                logger.info(f"Successfully cached {len(airports_data)} airports in Redis")
                 return True
-            else:
-                logger.error("Failed to cache airports data")
-                return False
 
+            logger.error("Failed to cache airports data")
+            return False
         except Exception as e:
             logger.error(f"Error caching airports data: {e}")
             return False
 
     def _cache_individual_airports(self, airports_data: Dict[str, Dict], timeout: int):
         try:
+            cached_count = 0
             for iata, airport_data in airports_data.items():
+                if not all(k in airport_data for k in ['iata', 'city', 'lat', 'lon', 'state']):
+                    logger.warning(f"Skipping invalid airport data for {iata}")
+                    continue
+                
                 individual_key = f"{self.airports_by_iata_key}:{iata}"
-                cache.set(individual_key, json.dumps(airport_data), timeout=timeout)
+                success = cache.set(individual_key, json.dumps(airport_data), timeout=timeout)
+                if success:
+                    cached_count += 1
             
-            logger.info(f"Cached {len(airports_data)} individual airports")
+            logger.info(f"Cached {cached_count} individual airports")
         except Exception as e:
             logger.error(f"Error caching individual airports: {e}")
 
@@ -64,14 +63,12 @@ class AirportCacheService:
             data = cache.get(self.airports_data_key)
             if data:
                 data = json.loads(data)
-                logger.info(f"Retrieved {len(data)} airports from cache")
+                logger.info(f"Cache hit: Retrieved {len(data)} airports")
                 return data
-            else:
-                logger.info("No airports data found in cache")
-                return None
-                
+            logger.info("Cache miss: No airports data found")
+            return None
         except Exception as e:
-            logger.error(f"Error retrieving airports data from cache: {e}")
+            logger.error(f"Error retrieving airports data: {e}")
             return None
 
     def get_airport_by_iata(self, iata: str) -> Optional[Dict]:
@@ -79,23 +76,24 @@ class AirportCacheService:
             iata = iata.upper().strip()
             individual_key = f"{self.airports_by_iata_key}:{iata}"
             
+            # Try to get individual airport from cache
             airport_data = cache.get(individual_key)
             if airport_data:
                 airport_data = json.loads(airport_data)
-                logger.debug(f"Retrieved airport {iata} from cache")
+                logger.debug(f"Retrieved airport {iata} from individual cache")
                 return airport_data
             
+            # Fallback to full dataset
             all_airports = self.get_airports_data()
             if all_airports and iata in all_airports:
                 airport_data = all_airports[iata]
-                
+                # Cache for next time
                 cache.set(individual_key, json.dumps(airport_data), self.default_timeout)
                 logger.debug(f"Cached airport {iata} from full dataset")
                 return airport_data
                 
             logger.debug(f"Airport {iata} not found in cache")
             return None
-            
         except Exception as e:
             logger.error(f"Error retrieving airport {iata} from cache: {e}")
             return None

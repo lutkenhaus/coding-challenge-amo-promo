@@ -1,7 +1,12 @@
-from django.core.management.base import BaseCommand
-from django.conf import settings
+import json
 import requests
 from requests.auth import HTTPBasicAuth
+
+from django.core.cache import cache
+from django.core.management.base import BaseCommand
+from django.utils import timezone
+from django.conf import settings
+
 from airports.models import Airport
 from airports.services import AirportCacheService
 
@@ -32,6 +37,7 @@ class Command(BaseCommand):
             getattr(settings, 'API_PASSWORD', '')
         )
         timeout = getattr(settings, 'API_TIMEOUT', 30)
+        cache_service = AirportCacheService()
         
         try:
             response = requests.get(api_url, auth=auth, timeout=timeout)
@@ -46,16 +52,29 @@ class Command(BaseCommand):
             if not isinstance(airports_data, dict):
                 self.stdout.write(self.style.ERROR('API response is not a dictionary'))
                 return
-
+            
+            # Data validation
+            iata_codes = set()
+            valid_airports = {}
+            for iata, data in airports_data.items():
+                if iata in iata_codes:
+                    self.stdout.write(self.style.WARNING(f"Duplicate IATA code: {iata}"))
+                    continue
+                if not all(k in data for k in ['iata', 'city', 'lat', 'lon', 'state']):
+                    self.stdout.write(self.style.WARNING(f"Invalid data for {iata}"))
+                    continue
+                if not (-90 <= data.get('lat', 0) <= 90 and -180 <= data.get('lon', 0) <= 180):
+                    self.stdout.write(self.style.WARNING(f"Invalid coordinates for {iata}"))
+                    continue
+                iata_codes.add(iata)
+                valid_airports[iata] = data
 
             # TO-DO: use Django's transaction management, to prevent database errors.
             # from django.db import transaction
             # with transaction.atomic():
             # ...
 
-            cache_service = AirportCacheService()
             created_count = 0
-            
             if options['dry_run']:
                 self.stdout.write(f"API Response Status: {response.status_code}")
                 self.stdout.write(f"Content-Type: {response.headers.get('Content-Type')}")
