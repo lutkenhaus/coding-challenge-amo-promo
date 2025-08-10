@@ -30,7 +30,11 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,0.0.0.0").split(",")
 
-API_TIMEOUT = 30
+AIRPORTS_API_URL = os.getenv('AIRPORTS_API_URL')
+API_LOGIN = os.getenv('API_LOGIN')
+API_PASSWORD = os.getenv('API_PASSWORD')
+API_KEY = os.getenv('API_KEY')
+API_TIMEOUT = int(os.getenv('API_TIMEOUT', '30'))
 
 # Redis Configuration
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
@@ -44,7 +48,7 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         },
         'KEY_PREFIX': 'amopromo',
-        'TIMEOUT': 300,  # 5 minutes default timeout
+        'TIMEOUT': None
     }
 }
 
@@ -160,3 +164,39 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# TESTS
+# Test configuration
+import sys
+if 'test' in sys.argv or 'pytest' in sys.modules:
+    # Use in-memory cache for tests instead of Redis
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'test-cache',
+        }
+    }
+    
+    # Use SQLite for faster tests (optional)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
+    
+    # Disable logging during tests
+    LOGGING_CONFIG = None
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': 'CRITICAL',
+        },
+    }
