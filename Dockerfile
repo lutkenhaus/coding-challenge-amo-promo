@@ -4,8 +4,15 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
     libpq-dev \
+    cron \
     gcc \
     && rm -rf /var/lib/apt/lists/*
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Create cron log file
+RUN touch /var/log/cron.log
 
 COPY requirements.txt .
 

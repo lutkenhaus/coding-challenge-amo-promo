@@ -66,6 +66,70 @@ CACHE_TIMEOUTS = {
     'AIRPORTS_LONG': 7 * 24 * 60 * 60,  # 1 week
 }
 
+# CRON
+# Crontab settings
+CRONJOBS = [
+    # Use custom function for better error handling and logging
+    ('0 2 * * *', 'airports.cron.import_airports_job'),
+    
+    # Alternative: Direct command call (simpler)
+    # ('0 2 * * *', 'django.core.management.call_command', ['import_airports', '--force-update']),
+]
+
+# Important for Docker: Set the command prefix to use docker-compose exec
+CRONTAB_COMMAND_PREFIX = 'cd /app && '
+
+# Optional: Enable job locking to prevent overlapping executions
+CRONTAB_LOCK_JOBS = True
+
+# Optional: Set custom command suffix for logging
+CRONTAB_COMMAND_SUFFIX = '2>&1'
+
+# Logging configuration for cron jobs
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': '/app/logs/airport_import.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'airports': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.core.management.commands.import_airports': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'WARNING',
+    },
+}
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -75,6 +139,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_crontab",
     "rest_framework",
     "airports",
 ]

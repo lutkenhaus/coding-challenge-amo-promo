@@ -14,6 +14,30 @@ services:
     networks:
       - app-network
 
+  cron:
+    build: .
+    container_name: amopromo_cron
+    depends_on:
+      - redis
+      - web
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    environment:
+      - DJANGO_SETTINGS_MODULE=amopromo.settings
+    env_file:
+      - .env
+    command: >
+      bash -c "
+        echo 'Starting cron container...' &&
+        service cron start &&
+        cd /app &&
+        python manage.py crontab add &&
+        echo 'Cron jobs added. Tailing cron log...' &&
+        tail -f /var/log/cron.log
+      "
+    restart: unless-stopped
+
   postgres:
     image: postgres:16
     environment:
