@@ -28,7 +28,7 @@ class Command(BaseCommand):
         )
     
     def handle(self, *args, **options):
-        self.stdout.write('Starting airport import...')
+        self.stdout.write(f'Starting airport import... [Timestamp: {timezone.now()}]')
         
         # TO-DO: add error handling techniques (rate-limiting, retries, batch processing, etc...).
         api_url = getattr(settings, 'AIRPORTS_API_URL', '')

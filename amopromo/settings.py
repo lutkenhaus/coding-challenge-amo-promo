@@ -50,17 +50,18 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'SERIALIZER': 'django_redis.serializers.json.JSONSerializer',
+            'KEY_PREFIX': 'amopromo',
         },
-        'KEY_PREFIX': 'amopromo:1',
         'TIMEOUT': None
     }
 }
 
 # Cache keys - centralized for easy management
 CACHE_KEYS = {
-    'AIRPORTS_DATA': 'airports:data:v1',
-    'AIRPORTS_BY_IATA': 'airports:by_iata:v1',
-    'AIRPORTS_LAST_SYNC': 'airports:last_sync:v1',
+    'AIRPORTS_DATA': 'amopromo:1:airports:data:v1',
+    'AIRPORTS_BY_IATA': 'amopromo:1:airports:by_iata:v1',
+    'AIRPORTS_LAST_SYNC': 'amopromo:1:airports:last_sync:v1'
 }
 
 # Cache timeouts (in seconds)
@@ -93,44 +94,17 @@ CRONTAB_COMMAND_SUFFIX = '2>&1'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
-    },
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': '/app/logs/airport_import.log',
-            'formatter': 'verbose',
-        },
         'console': {
-            'level': 'INFO',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple',
         },
     },
     'loggers': {
-        'airports': {
-            'handlers': ['file', 'console'],
+        '': {
+            'handlers': ['console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
-        'django.core.management.commands.import_airports': {
-            'handlers': ['file', 'console'],
-            'level': 'INFO',
-            'propagate': True,
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'WARNING',
     },
 }
 
