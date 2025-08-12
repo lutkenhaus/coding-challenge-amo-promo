@@ -1,5 +1,21 @@
 # coding-challenge-amo-promo
-This is a coding challenge created by the company Amo Promo.
+# AmoPromo
+
+AmoPromo is a Django-based web application for managing airport and flight data, integrated with an external API and using Redis for caching and PostgreSQL for persistent storage. The project includes a cron-based task for importing airport data and a REST API built with Django REST Framework.
+
+# Features
+
+- Imports airport data from an external API and caches it in Redis.
+- Supports scheduled data imports via Django Crontab.
+- Uses PostgreSQL for relational data storage. (In developments)
+- Provides a REST API for accessing airport and flight information.
+- Containerized with Docker for easy development and deployment.
+
+# Prerequisites
+
+- Docker
+- Python 3.13.5 (optional, for local development without Docker)
+- A .env file with required environment variables (see Environment Variables)
 
 # Technologies used in this project
 - Python
@@ -8,7 +24,7 @@ This is a coding challenge created by the company Amo Promo.
 - Docker
 ------------
 
-- Django REST Fremaework (DRF)
+- Django REST Framework (DRF)
 - Requests library
 - python-dotenv
 - pytest with pytest-django
@@ -21,7 +37,6 @@ This is a coding challenge created by the company Amo Promo.
 - Psycopg2 version:
 - Docker version: 28.3.2
 - Docker Compose version: v2.38.2
-- 
 
 # Installation
 
@@ -30,7 +45,7 @@ This is a coding challenge created by the company Amo Promo.
 git clone <repository-url>
 cd coding-challenge-amo-promo
 
-- Environment Variables
+# Environment Variables
 
 Create a .env file in the project root with the following variables:
 
