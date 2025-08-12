@@ -14,9 +14,9 @@ class AirportCacheService:
         self.cache_keys = getattr(settings, 'CACHE_KEYS', {})
         self.cache_timeouts = getattr(settings, 'CACHE_TIMEOUTS', {})
 
-        self.airports_data_key = self.cache_keys.get('AIRPORTS_DATA', 'airports:data:v1')
-        self.airports_by_iata_key = self.cache_keys.get('AIRPORTS_BY_IATA', 'airports:by_iata:v1')
-        self.last_sync_key = self.cache_keys.get('AIRPORTS_LAST_SYNC', 'airports:last_sync:v1')
+        self.airports_data_key = self.cache_keys.get('AIRPORTS_DATA', 'amopromo:1:airports:data:v1')
+        self.airports_by_iata_key = self.cache_keys.get('AIRPORTS_BY_IATA', 'amopromo:1:airports:by_iata:v1')
+        self.last_sync_key = self.cache_keys.get('AIRPORTS_LAST_SYNC', 'amopromo:1:airports:last_sync:v1')
         self.default_timeout = self.cache_timeouts.get('AIRPORTS_DATA', 24*60*60)
 
     def cache_airports_data(self, airports_data: Dict[str, Dict], timeout: Optional[int] = None) -> bool:

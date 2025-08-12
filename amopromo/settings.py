@@ -30,11 +30,15 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,0.0.0.0").split(",")
 
+# Airports API
 AIRPORTS_API_URL = os.getenv('AIRPORTS_API_URL')
 API_LOGIN = os.getenv('API_LOGIN')
 API_PASSWORD = os.getenv('API_PASSWORD')
 API_KEY = os.getenv('API_KEY')
 API_TIMEOUT = int(os.getenv('API_TIMEOUT', '30'))
+
+#Flights API
+FLIGHTS_API_URL = os.getenv('FLIGHTS_API_URL')
 
 # Redis Configuration
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
@@ -47,7 +51,7 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         },
-        'KEY_PREFIX': 'amopromo',
+        'KEY_PREFIX': 'amopromo:1',
         'TIMEOUT': None
     }
 }
@@ -142,6 +146,7 @@ INSTALLED_APPS = [
     "django_crontab",
     "rest_framework",
     "airports",
+    "flights",
 ]
 
 MIDDLEWARE = [

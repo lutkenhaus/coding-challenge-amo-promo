@@ -18,7 +18,7 @@ from airports.management.commands.import_airports import Command
 TEST_CACHE_SETTINGS = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'test-cache',
+        'LOCATION': 'unique-snowflake',
     }
 }
 

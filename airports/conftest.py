@@ -7,7 +7,7 @@ from django.test import override_settings
 TEST_CACHE_SETTINGS = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'test-cache',
+        'LOCATION': 'unique-snowflake',
     }
 }
 
